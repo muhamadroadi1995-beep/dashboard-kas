@@ -1433,13 +1433,26 @@
       }
 
       function loginAs(role) {
-        currentRole = role;
-        saveData();
-        updateRoleUI();
-        document.getElementById("modal-login").classList.add("hidden");
-        recalculateAndRender();
-      }
-
+    if (role === 'ADMIN') {
+        // Ganti tulisan di bawah ini dengan password Admin pilihan Anda
+        const passwordBenar = "Salam4Chan"; 
+        
+        const inputUser = prompt("🔒 Masukkan Password Khusus Admin:");
+        
+        if (inputUser !== passwordBenar) {
+            alert("❌ Password Salah! Akses Admin ditolak.");
+            return;
+        }
+        
+        alert("✅ Login Admin Berhasil!");
+    }
+    
+    currentRole = role;
+    saveData();
+    updateRoleUI();
+    document.getElementById('modal-login').classList.add('hidden');
+    recalculateAndRender();
+}
       // --- INITIAL RUN ---
       window.onload = () => {
         initApp();
