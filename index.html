@@ -1,0 +1,1449 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard Uang Kas Serba Otomatis</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icon -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SheetJS (Excel Export) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.min.js"></script>
+    <!-- jsPDF & AutoTable (PDF Export) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+      body {
+        font-family: "Inter", sans-serif;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col"
+  >
+    <!-- TOP NAVBAR -->
+    <header class="bg-indigo-900 text-white shadow-md sticky top-0 z-50">
+      <div
+        class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center"
+      >
+        <div class="flex items-center space-x-3">
+          <div class="bg-indigo-600 p-2 rounded-lg">
+            <i class="fa-solid fa-wallet text-xl"></i>
+          </div>
+          <div>
+            <h1 id="app-title" class="font-bold text-lg leading-tight">
+              DASHBOARD KAS PEKERJA
+            </h1>
+            <p class="text-xs text-indigo-200" id="current-date-text">
+              September 2026
+            </p>
+          </div>
+        </div>
+        <div class="flex items-center space-x-3">
+          <span
+            id="role-badge"
+            class="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+          >
+            <i class="fa-solid fa-user-shield mr-1"></i> Admin
+          </span>
+          <button
+            onclick="toggleLoginModal()"
+            id="btn-login-logout"
+            class="bg-indigo-800 hover:bg-indigo-700 text-white text-xs px-3 py-2 rounded-lg transition flex items-center gap-1"
+          >
+            <i class="fa-solid fa-right-from-bracket"></i>
+            <span id="lbl-login-logout">Logout</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- NOTIFICATION BAR -->
+    <div
+      id="notification-banner"
+      class="bg-amber-500 text-slate-900 px-4 py-2 text-sm font-medium flex items-center justify-between shadow-inner hidden"
+    >
+      <div class="max-w-7xl mx-auto flex items-center gap-2 w-full">
+        <i class="fa-solid fa-bell animate-bounce text-slate-900"></i>
+        <span id="notification-message"
+          >Peringatan: Ada pekerja yang terlambat bayar!</span
+        >
+      </div>
+    </div>
+
+    <!-- MAIN CONTAINER -->
+    <main class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full space-y-6">
+      <!-- FILTER & ACTION BAR -->
+      <section
+        class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap gap-4 items-center justify-between"
+      >
+        <div class="flex flex-wrap items-center gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1"
+              >Bulan</label
+            >
+            <select
+              id="filter-bulan"
+              onchange="filterData()"
+              class="border border-slate-300 text-xs rounded-lg p-2 focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option value="1">Januari</option>
+              <option value="2">Februari</option>
+              <option value="3">Maret</option>
+              <option value="4">April</option>
+              <option value="5">Mei</option>
+              <option value="6">Juni</option>
+              <option value="7">Juli</option>
+              <option value="8">Agustus</option>
+              <option value="9" selected>September</option>
+              <option value="10">Oktober</option>
+              <option value="11">November</option>
+              <option value="12">Desember</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1"
+              >Tahun</label
+            >
+            <select
+              id="filter-tahun"
+              onchange="filterData()"
+              class="border border-slate-300 text-xs rounded-lg p-2 focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option value="2026" selected>2026</option>
+              <option value="2027">2027</option>
+            </select>
+          </div>
+          <div class="self-end">
+            <button
+              onclick="resetFilter()"
+              class="text-xs text-indigo-600 hover:text-indigo-800 font-medium py-2 px-3 border border-indigo-200 rounded-lg bg-indigo-50 hover:bg-indigo-100"
+            >
+              Reset
+            </button>
+          </div>
+        </div>
+
+        <!-- EXPORT BUTTONS -->
+        <div class="flex items-center gap-2">
+          <button
+            onclick="exportToExcel()"
+            class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-2 rounded-lg font-medium shadow-sm transition flex items-center gap-1.5"
+          >
+            <i class="fa-solid fa-file-excel"></i> Excel
+          </button>
+          <button
+            onclick="exportToPDF()"
+            class="bg-rose-600 hover:bg-rose-700 text-white text-xs px-3 py-2 rounded-lg font-medium shadow-sm transition flex items-center gap-1.5"
+          >
+            <i class="fa-solid fa-file-pdf"></i> PDF
+          </button>
+          <button
+            onclick="exportToCSV()"
+            class="bg-slate-700 hover:bg-slate-800 text-white text-xs px-3 py-2 rounded-lg font-medium shadow-sm transition flex items-center gap-1.5"
+          >
+            <i class="fa-solid fa-file-csv"></i> CSV
+          </button>
+          <button
+            id="btn-settings"
+            onclick="openSettingsModal()"
+            class="admin-only bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs px-3 py-2 rounded-lg font-medium transition ml-2"
+          >
+            <i class="fa-solid fa-gear"></i> Pengaturan
+          </button>
+        </div>
+      </section>
+
+      <!-- KPI CARDS -->
+      <section class="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <p class="text-xs text-slate-500 font-medium">👥 Total Pekerja</p>
+          <h3 id="kpi-pekerja" class="text-2xl font-bold text-slate-800 mt-1">
+            30
+          </h3>
+          <p class="text-[10px] text-slate-400 mt-1">Orang aktif</p>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <p class="text-xs text-slate-500 font-medium">✅ Sudah Bayar</p>
+          <h3 id="kpi-sudah" class="text-2xl font-bold text-emerald-600 mt-1">
+            0
+          </h3>
+          <p
+            class="text-[10px] text-emerald-500 font-semibold"
+            id="kpi-sudah-pct"
+          >
+            0% selesai
+          </p>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <p class="text-xs text-slate-500 font-medium">⏳ Belum Bayar</p>
+          <h3 id="kpi-belum" class="text-2xl font-bold text-amber-500 mt-1">
+            30
+          </h3>
+          <p
+            class="text-[10px] text-amber-500 font-semibold"
+            id="kpi-belum-pct"
+          >
+            100% tersisa
+          </p>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <p class="text-xs text-slate-500 font-medium">⚠️ Terlambat</p>
+          <h3 id="kpi-terlambat" class="text-2xl font-bold text-rose-600 mt-1">
+            0
+          </h3>
+          <p class="text-[10px] text-rose-500 font-semibold">
+            Lewat tgl <span class="due-date-label">25</span>
+          </p>
+        </div>
+        <div
+          class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm col-span-2 md:col-span-1"
+        >
+          <p class="text-xs text-slate-500 font-medium">📅 Jatuh Tempo</p>
+          <h3 class="text-xl font-bold text-indigo-700 mt-1">
+            Tgl <span class="due-date-label">25</span>
+          </h3>
+          <p class="text-[10px] text-indigo-500">Setiap Bulan</p>
+        </div>
+
+        <!-- FINANCIAL KPI -->
+        <div
+          class="bg-gradient-to-br from-indigo-900 to-indigo-800 text-white p-4 rounded-xl shadow-md col-span-2 md:col-span-2"
+        >
+          <p class="text-xs text-indigo-200 font-medium">
+            🏦 Sisa Saldo Kas Utama
+          </p>
+          <h2 id="kpi-saldo" class="text-3xl font-extrabold mt-1">Rp0</h2>
+          <div
+            class="flex justify-between text-[11px] text-indigo-200 mt-3 pt-2 border-t border-indigo-700"
+          >
+            <span
+              >Kas Thn Berjalan: <strong id="kpi-kas-tahun">Rp0</strong></span
+            >
+            <span
+              >Iuran Bln Ini: <strong id="kpi-iuran-bulan">Rp0</strong></span
+            >
+          </div>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <p class="text-xs text-slate-500 font-medium">💰 Total Uang Masuk</p>
+          <h3 id="kpi-masuk" class="text-xl font-bold text-emerald-600 mt-1">
+            Rp0
+          </h3>
+          <p class="text-[10px] text-slate-400 mt-1">Akumulasi All-Time</p>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <p class="text-xs text-slate-500 font-medium">💸 Total Uang Keluar</p>
+          <h3 id="kpi-keluar" class="text-xl font-bold text-rose-600 mt-1">
+            Rp0
+          </h3>
+          <p class="text-[10px] text-slate-400 mt-1">Akumulasi All-Time</p>
+        </div>
+      </section>
+
+      <!-- CHARTS SECTION -->
+      <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <h4
+            class="font-bold text-sm text-slate-700 mb-4 flex items-center gap-2"
+          >
+            <i class="fa-solid fa-chart-line text-indigo-600"></i> Arus Kas Per
+            Bulan (2026)
+          </h4>
+          <div class="h-64">
+            <canvas id="chartCashFlow"></canvas>
+          </div>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <h4
+            class="font-bold text-sm text-slate-700 mb-4 flex items-center gap-2"
+          >
+            <i class="fa-solid fa-chart-pie text-indigo-600"></i> Penggunaan
+            Dana per Kategori
+          </h4>
+          <div class="h-64 flex justify-center">
+            <canvas id="chartCategory"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- TABS & TABLES -->
+      <section
+        class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
+      >
+        <!-- TAB HEADERS -->
+        <div
+          class="flex border-b border-slate-200 bg-slate-50 px-4 pt-3 gap-2 overflow-x-auto"
+        >
+          <button
+            onclick="switchTab('pekerja')"
+            id="tab-btn-pekerja"
+            class="py-2.5 px-4 text-xs font-bold rounded-t-lg border-b-2 border-indigo-600 text-indigo-600 bg-white"
+          >
+            👥 Monitoring Iuran (30 Pekerja)
+          </button>
+          <button
+            onclick="switchTab('transaksi')"
+            id="tab-btn-transaksi"
+            class="py-2.5 px-4 text-xs font-bold rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-700"
+          >
+            💳 Transaksi Uang Masuk & Keluar
+          </button>
+          <button
+            onclick="switchTab('rekap')"
+            id="tab-btn-rekap"
+            class="py-2.5 px-4 text-xs font-bold rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-700"
+          >
+            📊 Rekap Bulanan & Tahunan
+          </button>
+        </div>
+
+        <!-- TAB 1: PEKERJA MONITORING -->
+        <div id="tab-pekerja" class="p-4 space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-2 w-full md:w-auto">
+              <input
+                type="text"
+                id="search-worker"
+                onkeyup="renderWorkerTable()"
+                placeholder="Cari Nama Pekerja..."
+                class="border border-slate-300 text-xs rounded-lg p-2 w-full md:w-64"
+              />
+              <select
+                id="filter-status-pekerja"
+                onchange="renderWorkerTable()"
+                class="border border-slate-300 text-xs rounded-lg p-2"
+              >
+                <option value="ALL">Semua Status</option>
+                <option value="Sudah Bayar">✅ Sudah Bayar</option>
+                <option value="Belum Bayar">⏳ Belum Bayar</option>
+                <option value="Terlambat">⚠️ Terlambat</option>
+              </select>
+            </div>
+            <div class="admin-only flex gap-2">
+              <button
+                onclick="markAllPaid()"
+                class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs px-3 py-2 rounded-lg font-medium"
+              >
+                <i class="fa-solid fa-check-double mr-1"></i> Tandai Semua Lunas
+              </button>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table
+              class="w-full text-left text-xs text-slate-600 border-collapse"
+            >
+              <thead
+                class="bg-slate-100 text-slate-700 uppercase font-semibold text-[11px]"
+              >
+                <tr>
+                  <th class="p-3 border-b">No</th>
+                  <th class="p-3 border-b">Nama Pekerja</th>
+                  <th class="p-3 border-b">Iuran</th>
+                  <th class="p-3 border-b">Tanggal Bayar</th>
+                  <th class="p-3 border-b">Status</th>
+                  <th class="p-3 border-b">Keterangan Otomatis</th>
+                  <th class="p-3 border-b text-center admin-only">
+                    Aksi Admin
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="worker-table-body">
+                <!-- JS Inject -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB 2: TRANSAKSI MASUK / KELUAR -->
+        <div id="tab-transaksi" class="p-4 space-y-4 hidden">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+              <select
+                id="filter-jenis-trx"
+                onchange="renderTxTable()"
+                class="border border-slate-300 text-xs rounded-lg p-2"
+              >
+                <option value="ALL">Semua Jenis</option>
+                <option value="MASUK">Uang Masuk</option>
+                <option value="KELUAR">Uang Keluar</option>
+              </select>
+            </div>
+            <button
+              onclick="openTxModal()"
+              class="admin-only bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-2 rounded-lg font-bold shadow-sm flex items-center gap-1"
+            >
+              <i class="fa-solid fa-plus"></i> Tambah Transaksi
+            </button>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table
+              class="w-full text-left text-xs text-slate-600 border-collapse"
+            >
+              <thead
+                class="bg-slate-100 text-slate-700 uppercase font-semibold text-[11px]"
+              >
+                <tr>
+                  <th class="p-3 border-b">Tanggal</th>
+                  <th class="p-3 border-b">Nama/Keterangan</th>
+                  <th class="p-3 border-b">Jenis</th>
+                  <th class="p-3 border-b">Kategori</th>
+                  <th class="p-3 border-b text-right">Nominal</th>
+                  <th class="p-3 border-b text-center admin-only">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="tx-table-body">
+                <!-- JS Inject -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB 3: REKAP BULANAN & TAHUNAN -->
+        <div id="tab-rekap" class="p-6 space-y-6 hidden">
+          <div
+            class="bg-indigo-50 border border-indigo-200 rounded-xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
+          >
+            <div>
+              <h3 class="font-bold text-base text-indigo-900" id="rekap-title">
+                Rekapitulasi Kas Bulan September 2026
+              </h3>
+              <p class="text-xs text-indigo-700 mt-1">
+                Ringkasan transaksi dan iuran bulanan otomatis.
+              </p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- RINGKASAN REKAP BULANAN -->
+            <div
+              class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3"
+            >
+              <h4
+                class="font-bold text-xs uppercase text-slate-500 border-b pb-2"
+              >
+                Rincian Keuangan Bulan Ini
+              </h4>
+              <div class="flex justify-between text-xs">
+                <span>Total Iuran Terkumpul:</span>
+                <strong id="rk-iuran" class="text-emerald-600">Rp0</strong>
+              </div>
+              <div class="flex justify-between text-xs">
+                <span>Total Uang Masuk (Inc. Iuran):</span>
+                <strong id="rk-masuk" class="text-emerald-600">Rp0</strong>
+              </div>
+              <div class="flex justify-between text-xs">
+                <span>Pengeluaran Orang Meninggal:</span>
+                <strong id="rk-meninggal" class="text-rose-600">Rp0</strong>
+              </div>
+              <div class="flex justify-between text-xs">
+                <span>Pengeluaran Sakit:</span>
+                <strong id="rk-sakit" class="text-rose-600">Rp0</strong>
+              </div>
+              <div class="flex justify-between text-xs">
+                <span>Pengeluaran Backup:</span>
+                <strong id="rk-backup" class="text-rose-600">Rp0</strong>
+              </div>
+              <div class="flex justify-between text-xs">
+                <span>Pengeluaran Lainnya:</span>
+                <strong id="rk-lainnya" class="text-rose-600">Rp0</strong>
+              </div>
+              <div
+                class="flex justify-between text-xs border-t pt-2 font-bold text-slate-800"
+              >
+                <span>Total Uang Keluar Bulan Ini:</span>
+                <span id="rk-keluar-total" class="text-rose-600">Rp0</span>
+              </div>
+              <div
+                class="flex justify-between text-sm border-t pt-2 font-extrabold text-indigo-900"
+              >
+                <span>Surplus/Defisit Bulan Ini:</span>
+                <span id="rk-surplus">Rp0</span>
+              </div>
+            </div>
+
+            <!-- PEKERJA BELUM BAYAR -->
+            <div
+              class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3"
+            >
+              <h4
+                class="font-bold text-xs uppercase text-slate-500 border-b pb-2"
+              >
+                Daftar Pekerja Belum / Terlambat Bayar
+              </h4>
+              <ul
+                id="unpaid-workers-list"
+                class="text-xs space-y-1.5 max-h-48 overflow-y-auto"
+              >
+                <!-- JS Inject -->
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- FOOTER -->
+    <footer
+      class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500 mt-auto"
+    >
+      <p>
+        © 2026 Sistem Dashboard Uang Kas Serba Otomatis. Modern, Presisi, &
+        Transparan.
+      </p>
+    </footer>
+
+    <!-- MODAL TRANSAKSI (ADMIN ONLY) -->
+    <div
+      id="modal-tx"
+      class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4"
+    >
+      <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
+        <h3 class="font-bold text-base text-slate-800" id="modal-tx-title">
+          Tambah Transaksi Uang Kas
+        </h3>
+        <form
+          id="form-tx"
+          onsubmit="saveTransaction(event)"
+          class="space-y-3 text-xs"
+        >
+          <div>
+            <label class="block font-medium mb-1">Jenis Transaksi</label>
+            <select
+              id="tx-jenis"
+              onchange="updateCategoryOptions()"
+              class="w-full border rounded-lg p-2"
+            >
+              <option value="MASUK">Uang Masuk</option>
+              <option value="KELUAR">Uang Keluar</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-medium mb-1">Tanggal</label>
+            <input
+              type="date"
+              id="tx-tanggal"
+              required
+              class="w-full border rounded-lg p-2"
+            />
+          </div>
+          <div>
+            <label class="block font-medium mb-1"
+              >Nama / Keterangan Single</label
+            >
+            <input
+              type="text"
+              id="tx-nama"
+              placeholder="Contoh: Bantuan Sakit Bpk Budi"
+              required
+              class="w-full border rounded-lg p-2"
+            />
+          </div>
+          <div>
+            <label class="block font-medium mb-1">Kategori</label>
+            <select id="tx-kategori" class="w-full border rounded-lg p-2">
+              <!-- JS inject -->
+            </select>
+          </div>
+          <div>
+            <label class="block font-medium mb-1">Nominal (Rp)</label>
+            <input
+              type="number"
+              id="tx-nominal"
+              min="1000"
+              placeholder="300000"
+              required
+              class="w-full border rounded-lg p-2"
+            />
+          </div>
+          <div class="flex justify-end gap-2 pt-3">
+            <button
+              type="button"
+              onclick="closeTxModal()"
+              class="px-3 py-2 border rounded-lg text-slate-600 hover:bg-slate-100"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              class="px-4 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700"
+            >
+              Simpan Transaksi
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL PENGATURAN (ADMIN ONLY) -->
+    <div
+      id="modal-settings"
+      class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4"
+    >
+      <div
+        class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto"
+      >
+        <h3 class="font-bold text-base text-slate-800">
+          Pengaturan Sistem Admin
+        </h3>
+        <form
+          id="form-settings"
+          onsubmit="saveSettings(event)"
+          class="space-y-3 text-xs"
+        >
+          <div>
+            <label class="block font-medium mb-1"
+              >Nama Organisasi/Kelompok</label
+            >
+            <input
+              type="text"
+              id="cfg-org"
+              class="w-full border rounded-lg p-2"
+            />
+          </div>
+          <div>
+            <label class="block font-medium mb-1"
+              >Nominal Iuran (Rp/Orang)</label
+            >
+            <input
+              type="number"
+              id="cfg-iuran"
+              class="w-full border rounded-lg p-2"
+            />
+          </div>
+          <div>
+            <label class="block font-medium mb-1"
+              >Tanggal Jatuh Tempo Per Bulan</label
+            >
+            <input
+              type="number"
+              id="cfg-due"
+              min="1"
+              max="31"
+              class="w-full border rounded-lg p-2"
+            />
+          </div>
+          <div>
+            <label class="block font-medium mb-1"
+              >Default Bantuan Meninggal (Rp)</label
+            >
+            <input
+              type="number"
+              id="cfg-meninggal"
+              class="w-full border rounded-lg p-2"
+            />
+          </div>
+          <div>
+            <label class="block font-medium mb-1"
+              >Default Bantuan Sakit (Rp)</label
+            >
+            <input
+              type="number"
+              id="cfg-sakit"
+              class="w-full border rounded-lg p-2"
+            />
+          </div>
+          <div>
+            <label class="block font-medium mb-1"
+              >Default Dana Backup (Rp)</label
+            >
+            <input
+              type="number"
+              id="cfg-backup"
+              class="w-full border rounded-lg p-2"
+            />
+          </div>
+          <div class="border-t pt-3 flex justify-end gap-2">
+            <button
+              type="button"
+              onclick="closeSettingsModal()"
+              class="px-3 py-2 border rounded-lg text-slate-600"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              class="px-4 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700"
+            >
+              Simpan Pengaturan
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL LOGIN -->
+    <div
+      id="modal-login"
+      class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4"
+    >
+      <div class="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 space-y-4">
+        <h3 class="font-bold text-center text-lg text-slate-800">
+          Login Sistem Kas
+        </h3>
+        <p class="text-xs text-center text-slate-500">
+          Pilih mode akses untuk melanjutkan.
+        </p>
+        <div class="space-y-3 pt-2">
+          <button
+            onclick="loginAs('ADMIN')"
+            class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg shadow-sm"
+          >
+            🔑 Login Sebagai Admin
+          </button>
+          <button
+            onclick="loginAs('USER')"
+            class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-lg"
+          >
+            👁️ Masuk Sebagai User (Read Only)
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC ENGINE -->
+    <script>
+      // --- 1. CONFIG & DATA INITIALIZATION ---
+      const DEFAULT_WORKERS = Array.from(
+        { length: 30 },
+        (_, i) => `Pekerja ${i + 1}`,
+      );
+
+      let config = JSON.parse(localStorage.getItem("kas_config")) || {
+        orgName: "DASHBOARD KAS PEKERJA",
+        feePerWorker: 20000,
+        dueDateDay: 25,
+        defaultMeninggal: 300000,
+        defaultSakit: 300000,
+        defaultBackup: 125000,
+        activeYear: 2026,
+      };
+
+      let currentRole = localStorage.getItem("kas_role") || "ADMIN"; // ADMIN or USER
+
+      // Payments Data: { "2026-9": { "Pekerja 1": { paid: true, date: "2026-09-10" } } }
+      let payments = JSON.parse(localStorage.getItem("kas_payments")) || {};
+
+      // General Transactions: [ { id, date, name, jenis: 'MASUK'|'KELUAR', category, amount } ]
+      let transactions =
+        JSON.parse(localStorage.getItem("kas_transactions")) || [];
+
+      let chartCashFlowInst = null;
+      let chartCategoryInst = null;
+
+      // --- 2. CORE UTILS ---
+      function formatRp(num) {
+        return "Rp" + Number(num || 0).toLocaleString("id-ID");
+      }
+
+      function getMonthName(m) {
+        const months = [
+          "Januari",
+          "Februari",
+          "Maret",
+          "April",
+          "Mei",
+          "Juni",
+          "Juli",
+          "Agustus",
+          "September",
+          "Oktober",
+          "November",
+          "Desember",
+        ];
+        return months[m - 1];
+      }
+
+      function saveData() {
+        localStorage.setItem("kas_config", JSON.stringify(config));
+        localStorage.setItem("kas_payments", JSON.stringify(payments));
+        localStorage.setItem("kas_transactions", JSON.stringify(transactions));
+        localStorage.setItem("kas_role", currentRole);
+      }
+
+      // --- 3. UI RENDER ENGINE ---
+      function initApp() {
+        updateRoleUI();
+        document.getElementById("app-title").innerText = config.orgName;
+        document
+          .querySelectorAll(".due-date-label")
+          .forEach((el) => (el.innerText = config.dueDateDay));
+
+        // Set input date defaults
+        const now = new Date();
+        document.getElementById("tx-tanggal").value = now
+          .toISOString()
+          .split("T")[0];
+
+        recalculateAndRender();
+      }
+
+      function updateRoleUI() {
+        const badge = document.getElementById("role-badge");
+        const lbl = document.getElementById("lbl-login-logout");
+        if (currentRole === "ADMIN") {
+          badge.className =
+            "text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+          badge.innerHTML = `<i class="fa-solid fa-user-shield mr-1"></i> Admin`;
+          lbl.innerText = "Logout (Admin)";
+          document
+            .querySelectorAll(".admin-only")
+            .forEach((e) => e.classList.remove("hidden"));
+        } else {
+          badge.className =
+            "text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-500/20 text-slate-300 border border-slate-500/30";
+          badge.innerHTML = `<i class="fa-solid fa-eye mr-1"></i> User (Read Only)`;
+          lbl.innerText = "Switch Mode";
+          document
+            .querySelectorAll(".admin-only")
+            .forEach((e) => e.classList.add("hidden"));
+        }
+      }
+
+      function recalculateAndRender() {
+        const m = parseInt(document.getElementById("filter-bulan").value);
+        const y = parseInt(document.getElementById("filter-tahun").value);
+        const key = `${y}-${m}`;
+
+        if (!payments[key]) payments[key] = {};
+
+        document.getElementById("current-date-text").innerText =
+          `${getMonthName(m)} ${y}`;
+
+        // 1. Worker stats calculation
+        let countSudah = 0;
+        let countBelum = 0;
+        let countTerlambat = 0;
+        const today = new Date();
+        const currentDay = today.getDate();
+
+        DEFAULT_WORKERS.forEach((w) => {
+          const rec = payments[key][w];
+          if (rec && rec.paid) {
+            countSudah++;
+          } else {
+            if (currentDay > config.dueDateDay) {
+              countTerlambat++;
+            } else {
+              countBelum++;
+            }
+          }
+        });
+
+        // Total financial calculations
+        let totalIuranBulanIni = countSudah * config.feePerWorker;
+
+        // All-time income & expense
+        let totalUangMasuk = 0;
+        let totalUangKeluar = 0;
+
+        // Calculate payments from all months
+        Object.keys(payments).forEach((k) => {
+          Object.values(payments[k]).forEach((p) => {
+            if (p.paid) totalUangMasuk += config.feePerWorker;
+          });
+        });
+
+        // Add manual transactions
+        transactions.forEach((t) => {
+          if (t.jenis === "MASUK") totalUangMasuk += t.amount;
+          if (t.jenis === "KELUAR") totalUangKeluar += t.amount;
+        });
+
+        let sisaSaldo = totalUangMasuk - totalUangKeluar;
+
+        // Kas tahun berjalan
+        let totalKasTahun = 0;
+        Object.keys(payments).forEach((k) => {
+          if (k.startsWith(`${y}-`)) {
+            Object.values(payments[k]).forEach((p) => {
+              if (p.paid) totalKasTahun += config.feePerWorker;
+            });
+          }
+        });
+        transactions.forEach((t) => {
+          if (new Date(t.date).getFullYear() === y) {
+            if (t.jenis === "MASUK") totalKasTahun += t.amount;
+            if (t.jenis === "KELUAR") totalKasTahun -= t.amount;
+          }
+        });
+
+        // Update KPI Display
+        document.getElementById("kpi-pekerja").innerText =
+          DEFAULT_WORKERS.length;
+        document.getElementById("kpi-sudah").innerText = countSudah;
+        document.getElementById("kpi-sudah-pct").innerText =
+          `${Math.round((countSudah / 30) * 100)}% selesai`;
+        document.getElementById("kpi-belum").innerText = countBelum;
+        document.getElementById("kpi-belum-pct").innerText =
+          `${Math.round((countBelum / 30) * 100)}% tersisa`;
+        document.getElementById("kpi-terlambat").innerText = countTerlambat;
+
+        document.getElementById("kpi-saldo").innerText = formatRp(sisaSaldo);
+        document.getElementById("kpi-kas-tahun").innerText =
+          formatRp(totalKasTahun);
+        document.getElementById("kpi-iuran-bulan").innerText =
+          formatRp(totalIuranBulanIni);
+        document.getElementById("kpi-masuk").innerText =
+          formatRp(totalUangMasuk);
+        document.getElementById("kpi-keluar").innerText =
+          formatRp(totalUangKeluar);
+
+        // Notification Banner logic
+        const banner = document.getElementById("notification-banner");
+        const msg = document.getElementById("notification-message");
+        if (countTerlambat > 0) {
+          banner.classList.remove("hidden");
+          msg.innerText = `Peringatan: Terdapat ${countTerlambat} pekerja yang TERLAMBAT membayar iuran bulan ${getMonthName(m)} ${y}!`;
+        } else if (
+          currentDay >= config.dueDateDay - 3 &&
+          currentDay <= config.dueDateDay &&
+          countBelum > 0
+        ) {
+          banner.classList.remove("hidden");
+          msg.innerText = `Pengingat: Mendekati tanggal jatuh tempo (${config.dueDateDay} ${getMonthName(m)}). ${countBelum} pekerja belum bayar.`;
+        } else {
+          banner.classList.add("hidden");
+        }
+
+        renderWorkerTable();
+        renderTxTable();
+        renderRekap();
+        renderCharts();
+      }
+
+      // --- 4. RENDER WORKER TABLE ---
+      function renderWorkerTable() {
+        const m = parseInt(document.getElementById("filter-bulan").value);
+        const y = parseInt(document.getElementById("filter-tahun").value);
+        const key = `${y}-${m}`;
+        const search = document
+          .getElementById("search-worker")
+          .value.toLowerCase();
+        const filterSts = document.getElementById(
+          "filter-status-pekerja",
+        ).value;
+        const today = new Date();
+
+        const tbody = document.getElementById("worker-table-body");
+        tbody.innerHTML = "";
+
+        DEFAULT_WORKERS.forEach((name, index) => {
+          if (search && !name.toLowerCase().includes(search)) return;
+
+          const rec = (payments[key] && payments[key][name]) || {
+            paid: false,
+            date: null,
+          };
+
+          let status = "Belum Bayar";
+          let badgeClass = "bg-amber-100 text-amber-700 border-amber-300";
+          let statusIcon = "⏳";
+          let ket = `Belum bayar, jatuh tempo tanggal ${config.dueDateDay} ${getMonthName(m)} ${y}.`;
+
+          if (rec.paid) {
+            status = "Sudah Bayar";
+            badgeClass = "bg-emerald-100 text-emerald-700 border-emerald-300";
+            statusIcon = "✅";
+            ket = `Sudah melakukan pembayaran iuran bulan ${getMonthName(m)} ${y}.`;
+          } else if (today.getDate() > config.dueDateDay) {
+            status = "Terlambat";
+            badgeClass = "bg-rose-100 text-rose-700 border-rose-300";
+            statusIcon = "⚠️";
+            ket = `Terlambat melakukan pembayaran iuran bulan ${getMonthName(m)} ${y}.`;
+          }
+
+          if (filterSts !== "ALL" && status !== filterSts) return;
+
+          const tr = document.createElement("tr");
+          tr.className = "hover:bg-slate-50 border-b";
+          tr.innerHTML = `
+                    <td class="p-3 font-medium text-slate-400">${index + 1}</td>
+                    <td class="p-3 font-bold text-slate-800">${name}</td>
+                    <td class="p-3">${formatRp(config.feePerWorker)}</td>
+                    <td class="p-3">${rec.date ? rec.date : "-"}</td>
+                    <td class="p-3">
+                        <span class="px-2 py-1 text-[10px] font-bold rounded-full border ${badgeClass}">
+                            ${statusIcon} ${status}
+                        </span>
+                    </td>
+                    <td class="p-3 text-slate-500 italic">${ket}</td>
+                    <td class="p-3 text-center admin-only">
+                        <button onclick="togglePayWorker('${name}')" class="px-2.5 py-1 text-[11px] rounded-lg font-semibold ${rec.paid ? "bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100" : "bg-emerald-600 text-white hover:bg-emerald-700"} transition">
+                            ${rec.paid ? "Batalkan" : "Bayar"}
+                        </button>
+                    </td>
+                `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      function togglePayWorker(name) {
+        const m = parseInt(document.getElementById("filter-bulan").value);
+        const y = parseInt(document.getElementById("filter-tahun").value);
+        const key = `${y}-${m}`;
+
+        if (!payments[key]) payments[key] = {};
+
+        const curr = payments[key][name] ? payments[key][name].paid : false;
+        payments[key][name] = {
+          paid: !curr,
+          date: !curr ? new Date().toISOString().split("T")[0] : null,
+        };
+
+        saveData();
+        recalculateAndRender();
+      }
+
+      function markAllPaid() {
+        if (confirm("Tandai seluruh 30 pekerja telah bayar bulan ini?")) {
+          const m = parseInt(document.getElementById("filter-bulan").value);
+          const y = parseInt(document.getElementById("filter-tahun").value);
+          const key = `${y}-${m}`;
+          if (!payments[key]) payments[key] = {};
+          const todayStr = new Date().toISOString().split("T")[0];
+          DEFAULT_WORKERS.forEach((w) => {
+            payments[key][w] = { paid: true, date: todayStr };
+          });
+          saveData();
+          recalculateAndRender();
+        }
+      }
+
+      // --- 5. TRANSACTIONS ENGINE ---
+      function updateCategoryOptions() {
+        const jenis = document.getElementById("tx-jenis").value;
+        const katSelect = document.getElementById("tx-kategori");
+        katSelect.innerHTML = "";
+
+        let opts = [];
+        if (jenis === "MASUK") {
+          opts = ["Iuran Tambahan", "Sponsor / Donasi", "Lain-lain"];
+        } else {
+          opts = [
+            "⚰️ Orang Meninggal",
+            "🏥 Sakit",
+            "🛡️ Backup",
+            "Pengeluaran Operasional",
+            "Lainnya",
+          ];
+        }
+
+        opts.forEach((o) => {
+          const opt = document.createElement("option");
+          opt.value = o;
+          opt.innerText = o;
+          katSelect.appendChild(opt);
+        });
+      }
+
+      function openTxModal() {
+        updateCategoryOptions();
+        document.getElementById("modal-tx").classList.remove("hidden");
+      }
+
+      function closeTxModal() {
+        document.getElementById("modal-tx").classList.add("hidden");
+      }
+
+      function saveTransaction(e) {
+        e.preventDefault();
+        const jenis = document.getElementById("tx-jenis").value;
+        const date = document.getElementById("tx-tanggal").value;
+        const name = document.getElementById("tx-nama").value;
+        const category = document.getElementById("tx-kategori").value;
+        const amount = parseFloat(document.getElementById("tx-nominal").value);
+
+        transactions.push({
+          id: Date.now(),
+          jenis,
+          date,
+          name,
+          category,
+          amount,
+        });
+
+        saveData();
+        closeTxModal();
+        recalculateAndRender();
+      }
+
+      function deleteTx(id) {
+        if (confirm("Hapus transaksi ini?")) {
+          transactions = transactions.filter((t) => t.id !== id);
+          saveData();
+          recalculateAndRender();
+        }
+      }
+
+      function renderTxTable() {
+        const jenisFilter = document.getElementById("filter-jenis-trx").value;
+        const tbody = document.getElementById("tx-table-body");
+        tbody.innerHTML = "";
+
+        const filtered = transactions.filter(
+          (t) => jenisFilter === "ALL" || t.jenis === jenisFilter,
+        );
+
+        filtered
+          .sort((a, b) => new Date(b.date) - new Date(a.date))
+          .forEach((t) => {
+            const tr = document.createElement("tr");
+            tr.className = "hover:bg-slate-50 border-b";
+            tr.innerHTML = `
+                    <td class="p-3 font-medium">${t.date}</td>
+                    <td class="p-3 font-bold text-slate-800">${t.name}</td>
+                    <td class="p-3">
+                        <span class="px-2 py-0.5 text-[10px] font-bold rounded-full ${t.jenis === "MASUK" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}">
+                            ${t.jenis}
+                        </span>
+                    </td>
+                    <td class="p-3 text-slate-600">${t.category}</td>
+                    <td class="p-3 text-right font-bold ${t.jenis === "MASUK" ? "text-emerald-600" : "text-rose-600"}">${formatRp(t.amount)}</td>
+                    <td class="p-3 text-center admin-only">
+                        <button onclick="deleteTx(${t.id})" class="text-rose-600 hover:text-rose-800"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                `;
+            tbody.appendChild(tr);
+          });
+      }
+
+      // --- 6. REKAP TAB ---
+      function renderRekap() {
+        const m = parseInt(document.getElementById("filter-bulan").value);
+        const y = parseInt(document.getElementById("filter-tahun").value);
+        const key = `${y}-${m}`;
+
+        document.getElementById("rekap-title").innerText =
+          `Rekapitulasi Kas Bulan ${getMonthName(m)} ${y}`;
+
+        let countPaid = 0;
+        if (payments[key]) {
+          Object.values(payments[key]).forEach((p) => {
+            if (p.paid) countPaid++;
+          });
+        }
+        let totalIuran = countPaid * config.feePerWorker;
+
+        let totalMasuk = totalIuran;
+        let valMeninggal = 0,
+          valSakit = 0,
+          valBackup = 0,
+          valLain = 0;
+
+        transactions.forEach((t) => {
+          const d = new Date(t.date);
+          if (d.getMonth() + 1 === m && d.getFullYear() === y) {
+            if (t.jenis === "MASUK") totalMasuk += t.amount;
+            if (t.jenis === "KELUAR") {
+              if (t.category.includes("Meninggal")) valMeninggal += t.amount;
+              else if (t.category.includes("Sakit")) valSakit += t.amount;
+              else if (t.category.includes("Backup")) valBackup += t.amount;
+              else valLain += t.amount;
+            }
+          }
+        });
+
+        let totalKeluar = valMeninggal + valSakit + valBackup + valLain;
+
+        document.getElementById("rk-iuran").innerText = formatRp(totalIuran);
+        document.getElementById("rk-masuk").innerText = formatRp(totalMasuk);
+        document.getElementById("rk-meninggal").innerText =
+          formatRp(valMeninggal);
+        document.getElementById("rk-sakit").innerText = formatRp(valSakit);
+        document.getElementById("rk-backup").innerText = formatRp(valBackup);
+        document.getElementById("rk-lainnya").innerText = formatRp(valLain);
+        document.getElementById("rk-keluar-total").innerText =
+          formatRp(totalKeluar);
+
+        let net = totalMasuk - totalKeluar;
+        const rkSurplus = document.getElementById("rk-surplus");
+        rkSurplus.innerText = formatRp(net);
+        rkSurplus.className = net >= 0 ? "text-emerald-600" : "text-rose-600";
+
+        // Unpaid list
+        const unpaidUl = document.getElementById("unpaid-workers-list");
+        unpaidUl.innerHTML = "";
+        let unpaidCount = 0;
+        DEFAULT_WORKERS.forEach((w) => {
+          const rec = payments[key] && payments[key][w];
+          if (!rec || !rec.paid) {
+            unpaidCount++;
+            const li = document.createElement("li");
+            li.className =
+              "flex justify-between items-center text-rose-700 bg-rose-50 p-2 rounded-lg border border-rose-100";
+            li.innerHTML = `<span>❌ ${w}</span> <span class="text-[10px] font-semibold">Tunggakan: ${formatRp(config.feePerWorker)}</span>`;
+            unpaidUl.appendChild(li);
+          }
+        });
+
+        if (unpaidCount === 0) {
+          unpaidUl.innerHTML = `<li class="text-emerald-600 font-bold text-center py-4">🎉 Semua Pekerja Sudah Lunas Bayar!</li>`;
+        }
+      }
+
+      // --- 7. CHARTS ENGINE ---
+      function renderCharts() {
+        const y = parseInt(document.getElementById("filter-tahun").value);
+        const months = [
+          "Jan",
+          "Feb",
+          "Mar",
+          "Apr",
+          "Mei",
+          "Jun",
+          "Jul",
+          "Agt",
+          "Sep",
+          "Okt",
+          "Nov",
+          "Des",
+        ];
+
+        let dataMasuk = Array(12).fill(0);
+        let dataKeluar = Array(12).fill(0);
+
+        // Calculate Monthly Cashflows
+        for (let m = 1; m <= 12; m++) {
+          const key = `${y}-${m}`;
+          if (payments[key]) {
+            Object.values(payments[key]).forEach((p) => {
+              if (p.paid) dataMasuk[m - 1] += config.feePerWorker;
+            });
+          }
+        }
+
+        transactions.forEach((t) => {
+          const d = new Date(t.date);
+          if (d.getFullYear() === y) {
+            const idx = d.getMonth();
+            if (t.jenis === "MASUK") dataMasuk[idx] += t.amount;
+            if (t.jenis === "KELUAR") dataKeluar[idx] += t.amount;
+          }
+        });
+
+        // Cashflow Chart
+        const ctx1 = document.getElementById("chartCashFlow").getContext("2d");
+        if (chartCashFlowInst) chartCashFlowInst.destroy();
+        chartCashFlowInst = new Chart(ctx1, {
+          type: "bar",
+          data: {
+            labels: months,
+            datasets: [
+              {
+                label: "Uang Masuk",
+                data: dataMasuk,
+                backgroundColor: "#10b981",
+              },
+              {
+                label: "Uang Keluar",
+                data: dataKeluar,
+                backgroundColor: "#f43f5e",
+              },
+            ],
+          },
+          options: { responsive: true, maintainAspectRatio: false },
+        });
+
+        // Category Expense Pie Chart
+        let catTotals = { Meninggal: 0, Sakit: 0, Backup: 0, Lainnya: 0 };
+        transactions.forEach((t) => {
+          if (t.jenis === "KELUAR" && new Date(t.date).getFullYear() === y) {
+            if (t.category.includes("Meninggal"))
+              catTotals["Meninggal"] += t.amount;
+            else if (t.category.includes("Sakit"))
+              catTotals["Sakit"] += t.amount;
+            else if (t.category.includes("Backup"))
+              catTotals["Backup"] += t.amount;
+            else catTotals["Lainnya"] += t.amount;
+          }
+        });
+
+        const ctx2 = document.getElementById("chartCategory").getContext("2d");
+        if (chartCategoryInst) chartCategoryInst.destroy();
+        chartCategoryInst = new Chart(ctx2, {
+          type: "doughnut",
+          data: {
+            labels: ["⚰️ Meninggal", "🏥 Sakit", "🛡️ Backup", "📦 Lainnya"],
+            datasets: [
+              {
+                data: [
+                  catTotals["Meninggal"],
+                  catTotals["Sakit"],
+                  catTotals["Backup"],
+                  catTotals["Lainnya"],
+                ],
+                backgroundColor: ["#6366f1", "#ec4899", "#f59e0b", "#64748b"],
+              },
+            ],
+          },
+          options: { responsive: true, maintainAspectRatio: false },
+        });
+      }
+
+      // --- 8. EXPORT REPORTS ---
+      function exportToExcel() {
+        const m = parseInt(document.getElementById("filter-bulan").value);
+        const y = parseInt(document.getElementById("filter-tahun").value);
+        const key = `${y}-${m}`;
+
+        let data = DEFAULT_WORKERS.map((w, i) => {
+          const rec = payments[key] && payments[key][w];
+          return {
+            No: i + 1,
+            "Nama Pekerja": w,
+            "Nominal Iuran": config.feePerWorker,
+            "Tanggal Bayar": rec && rec.paid ? rec.date : "-",
+            Status: rec && rec.paid ? "Sudah Bayar" : "Belum Bayar",
+          };
+        });
+
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Rekap Iuran");
+        XLSX.writeFile(
+          wb,
+          `REKAP_UANG_KAS_${getMonthName(m).toUpperCase()}_${y}.xlsx`,
+        );
+      }
+
+      function exportToCSV() {
+        const m = parseInt(document.getElementById("filter-bulan").value);
+        const y = parseInt(document.getElementById("filter-tahun").value);
+        const key = `${y}-${m}`;
+
+        let csv = "No,Nama Pekerja,Iuran,Tanggal Bayar,Status\n";
+        DEFAULT_WORKERS.forEach((w, i) => {
+          const rec = payments[key] && payments[key][w];
+          csv += `${i + 1},${w},${config.feePerWorker},${rec && rec.paid ? rec.date : "-"},${rec && rec.paid ? "Sudah Bayar" : "Belum Bayar"}\n`;
+        });
+
+        const blob = new Blob([csv], { type: "text/csv" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `REKAP_UANG_KAS_${getMonthName(m).toUpperCase()}_${y}.csv`;
+        link.click();
+      }
+
+      function exportToPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const m = parseInt(document.getElementById("filter-bulan").value);
+        const y = parseInt(document.getElementById("filter-tahun").value);
+        const key = `${y}-${m}`;
+
+        doc.setFontSize(16);
+        doc.text(
+          `LAPORAN UANG KAS - ${getMonthName(m).toUpperCase()} ${y}`,
+          14,
+          20,
+        );
+        doc.setFontSize(10);
+        doc.text(`Organisasi: ${config.orgName}`, 14, 28);
+
+        let tableData = DEFAULT_WORKERS.map((w, i) => {
+          const rec = payments[key] && payments[key][w];
+          return [
+            i + 1,
+            w,
+            formatRp(config.feePerWorker),
+            rec && rec.paid ? rec.date : "-",
+            rec && rec.paid ? "Sudah Bayar" : "Belum Bayar",
+          ];
+        });
+
+        doc.autoTable({
+          startY: 34,
+          head: [["No", "Nama Pekerja", "Iuran", "Tgl Bayar", "Status"]],
+          body: tableData,
+        });
+
+        doc.save(`REKAP_UANG_KAS_${getMonthName(m).toUpperCase()}_${y}.pdf`);
+      }
+
+      // --- 9. MODALS & TAB NAVIGATION ---
+      function switchTab(tabName) {
+        ["pekerja", "transaksi", "rekap"].forEach((t) => {
+          document.getElementById(`tab-${t}`).classList.add("hidden");
+          document.getElementById(`tab-btn-${t}`).className =
+            "py-2.5 px-4 text-xs font-bold rounded-t-lg border-b-2 border-transparent text-slate-500 hover:text-slate-700";
+        });
+        document.getElementById(`tab-${tabName}`).classList.remove("hidden");
+        document.getElementById(`tab-btn-${tabName}`).className =
+          "py-2.5 px-4 text-xs font-bold rounded-t-lg border-b-2 border-indigo-600 text-indigo-600 bg-white";
+      }
+
+      function filterData() {
+        recalculateAndRender();
+      }
+      function resetFilter() {
+        document.getElementById("filter-bulan").value = 9;
+        document.getElementById("filter-tahun").value = 2026;
+        recalculateAndRender();
+      }
+
+      function openSettingsModal() {
+        document.getElementById("cfg-org").value = config.orgName;
+        document.getElementById("cfg-iuran").value = config.feePerWorker;
+        document.getElementById("cfg-due").value = config.dueDateDay;
+        document.getElementById("cfg-meninggal").value =
+          config.defaultMeninggal;
+        document.getElementById("cfg-sakit").value = config.defaultSakit;
+        document.getElementById("cfg-backup").value = config.defaultBackup;
+        document.getElementById("modal-settings").classList.remove("hidden");
+      }
+
+      function closeSettingsModal() {
+        document.getElementById("modal-settings").classList.add("hidden");
+      }
+
+      function saveSettings(e) {
+        e.preventDefault();
+        config.orgName = document.getElementById("cfg-org").value;
+        config.feePerWorker = parseFloat(
+          document.getElementById("cfg-iuran").value,
+        );
+        config.dueDateDay = parseInt(document.getElementById("cfg-due").value);
+        config.defaultMeninggal = parseFloat(
+          document.getElementById("cfg-meninggal").value,
+        );
+        config.defaultSakit = parseFloat(
+          document.getElementById("cfg-sakit").value,
+        );
+        config.defaultBackup = parseFloat(
+          document.getElementById("cfg-backup").value,
+        );
+
+        saveData();
+        closeSettingsModal();
+        initApp();
+      }
+
+      function toggleLoginModal() {
+        document.getElementById("modal-login").classList.remove("hidden");
+      }
+
+      function loginAs(role) {
+        currentRole = role;
+        saveData();
+        updateRoleUI();
+        document.getElementById("modal-login").classList.add("hidden");
+        recalculateAndRender();
+      }
+
+      // --- INITIAL RUN ---
+      window.onload = () => {
+        initApp();
+      };
+    </script>
+  </body>
+</html>
